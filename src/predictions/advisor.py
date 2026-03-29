@@ -1,6 +1,11 @@
 """Trading advisor v2 — ATR-dynamic + S/R-anchored price suggestions.
 
-Produces actionable BUY / SELL / HOLD with prices derived from:
+Long-only model (suitable for Vietnam and most retail markets):
+  BUY  → enter long with pullback entry, ATR-based TP/SL
+  SELL → exit existing long position, shows re-buy level
+  HOLD → wait, shows key levels to watch
+
+Price levels derived from:
   - Nearest support/resistance zones (swing-based, volume-based)
   - ATR-scaled entry pullback, TP, and stop-loss
   - EMA cluster proximity
@@ -119,43 +124,41 @@ def advise(df: pd.DataFrame) -> dict:
         bull_models = sum(1 for m in pred["models"].values() if m["direction"] > 0.1)
         reasons.append(f"{bull_models}/7 models bullish")
 
-    # ── SELL logic ────────────────────────────────────────────────────────
+    # ── SELL logic (long-only: "exit your position / avoid buying") ──────
     elif direction < -0.20 and confidence > 30:
         action = "SELL"
 
-        # Entry: at close or slight premium for short
+        # Sell at current close
         entry_price = close
 
-        # TP1: nearest support or 1.5×ATR below entry
-        tp1_by_sr = nearest_support
-        tp1_by_atr = entry_price - atr_val * 1.5
-        take_profit_1 = max(tp1_by_sr, tp1_by_atr)
-        take_profit_1 = min(take_profit_1, entry_price * 0.995)
+        # Re-buy level: nearest strong support (where we'd consider buying back)
+        rebuy_level = nearest_support
+        rebuy_level_2 = support_2
 
-        # TP2: deeper support or 2.5×ATR
-        tp2_by_sr = support_2
-        tp2_by_atr = entry_price - atr_val * 2.5
-        take_profit_2 = max(tp2_by_sr, tp2_by_atr)
-        take_profit_2 = min(take_profit_2, take_profit_1 * 0.997)
+        # These become "targets" — where price is likely heading
+        take_profit_1 = rebuy_level
+        take_profit_2 = rebuy_level_2
 
-        # Stop: above nearest resistance + 0.3×ATR
-        sl_by_sr = nearest_resistance + atr_val * 0.3
-        sl_by_atr = entry_price + atr_val * 1.5
-        stop_loss = min(sl_by_sr, sl_by_atr)
-        stop_loss = min(stop_loss, entry_price * 1.03)
+        # "Invalidation" — if price goes above this, the sell was wrong
+        # Use nearest resistance (where bears get invalidated)
+        stop_loss = nearest_resistance
 
         reasons.append(f"Bearish signal: direction {direction:+.2f}, confidence {confidence:.0f}%")
+        reasons.append("Recommendation: EXIT long position or AVOID buying")
         if rsi_val > 65:
             reasons.append(f"RSI {rsi_val:.0f} — overbought, pullback likely")
-        if bb_pct > 0.8:
+        if bb_pct > 0.7:
             reasons.append(f"BB%B {bb_pct:.2f} — near upper band, pressure building")
         if close < ema20:
             reasons.append("Price below EMA20 — short-term trend is down")
+        if close > ema20:
+            reasons.append("Price still above EMA20 — consider trailing stop")
 
         dist_to_sup = (close - nearest_support) / close * 100
         dist_to_res = (nearest_resistance - close) / close * 100
-        reasons.append(f"Support at {nearest_support:,.0f} ({dist_to_sup:.1f}% below)")
-        reasons.append(f"Resistance at {nearest_resistance:,.0f} ({dist_to_res:.1f}% above)")
+        reasons.append(f"Downside target at {nearest_support:,.0f} ({dist_to_sup:.1f}% below)")
+        reasons.append(f"Invalidation above {nearest_resistance:,.0f} ({dist_to_res:.1f}% above)")
+        reasons.append(f"Re-buy zone: {rebuy_level:,.0f} – {rebuy_level_2:,.0f}")
 
         bear_models = sum(1 for m in pred["models"].values() if m["direction"] < -0.1)
         reasons.append(f"{bear_models}/7 models bearish")
@@ -188,15 +191,24 @@ def advise(df: pd.DataFrame) -> dict:
             reasons.append(f"Leaning bearish — consider SELL on rally to {nearest_resistance:,.0f}")
 
     # ── Risk / Reward ─────────────────────────────────────────────────────
-    risk = abs(entry_price - stop_loss)
-    reward = abs(take_profit_1 - entry_price)
-    risk_reward = round(reward / risk, 2) if risk > 0 else 0.0
+    if action == "SELL":
+        # For SELL (long-only exit): reward = distance to downside target,
+        # risk = distance to invalidation (resistance)
+        reward = abs(entry_price - take_profit_1)
+        risk = abs(stop_loss - entry_price)
+        reward2 = abs(entry_price - take_profit_2)
+    else:
+        risk = abs(entry_price - stop_loss)
+        reward = abs(take_profit_1 - entry_price)
+        reward2 = abs(take_profit_2 - entry_price)
 
-    reward2 = abs(take_profit_2 - entry_price)
+    risk_reward = round(reward / risk, 2) if risk > 0 else 0.0
     risk_reward_2 = round(reward2 / risk, 2) if risk > 0 else 0.0
 
-    # Strength
-    if confidence >= 55 and risk_reward >= 1.5:
+    # Strength — require minimum R/R of 1.0 for any action to be STRONG
+    if action == "HOLD":
+        strength = "MODERATE" if confidence >= 35 else "WEAK"
+    elif confidence >= 55 and risk_reward >= 1.5:
         strength = "STRONG"
     elif confidence >= 35 and risk_reward >= 1.0:
         strength = "MODERATE"

@@ -57,11 +57,11 @@ def _print_recommendation(adv: dict) -> None:
         print(f"  \033[92m  TP1 (50%) : {tp1:>12,.0f} ₫  ({(tp1/close-1)*100:+.2f}%)\033[0m")
         print(f"  \033[92m  TP2 (50%) : {tp2:>12,.0f} ₫  ({(tp2/close-1)*100:+.2f}%)\033[0m")
     elif action == "SELL":
-        print(f"  \033[91m  Stop-loss : {sl:>12,.0f} ₫  ({(sl/close-1)*100:+.2f}%)\033[0m")
-        print(f"       Close   : {close:>12,.0f} ₫")
-        print(f"  \033[93m  Entry     : {entry:>12,.0f} ₫\033[0m")
-        print(f"  \033[92m  TP1 (50%) : {tp1:>12,.0f} ₫  ({(tp1/close-1)*100:+.2f}%)\033[0m")
-        print(f"  \033[92m  TP2 (50%) : {tp2:>12,.0f} ₫  ({(tp2/close-1)*100:+.2f}%)\033[0m")
+        print(f"  \033[91m  ⚠ SELL / EXIT your long position at current price\033[0m")
+        print(f"       Sell at : {close:>12,.0f} ₫")
+        print(f"  \033[93m  Re-buy 1  : {tp1:>12,.0f} ₫  ({(tp1/close-1)*100:+.2f}%)\033[0m")
+        print(f"  \033[93m  Re-buy 2  : {tp2:>12,.0f} ₫  ({(tp2/close-1)*100:+.2f}%)\033[0m")
+        print(f"  \033[91m  Invalid.  : {sl:>12,.0f} ₫  ({(sl/close-1)*100:+.2f}%) ← sell was wrong if above\033[0m")
     else:
         print(f"  \033[91m  Stop      : {sl:>12,.0f} ₫  ({(sl/close-1)*100:+.2f}%)\033[0m")
         print(f"       Close   : {close:>12,.0f} ₫")
