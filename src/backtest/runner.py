@@ -188,7 +188,7 @@ def _save_chart(res: dict, symbol: str, start: str, end: str, path: str) -> None
 
         ax1.set_title(f"{symbol}  |  {start} → {end}  |  6-MA Confluence", fontsize=11)
         ax1.legend(fontsize=6, loc="upper left", ncol=4)
-        ax1.set_ylabel("Price ($)")
+        ax1.set_ylabel("Price (₫)")
 
         # ── Middle panel: MACD ───────────────────────────────────────────────
         ax2 = fig.add_subplot(gs[1], sharex=ax1)
@@ -254,28 +254,28 @@ def main():
     print(f"  Strategy : 6-MA Confluence Momentum")
     print(f"  Symbol   : {args.symbol}   {args.start} → {args.end}")
     print(f"{'='*55}")
-    print(f"  Initial cash    : ${res['initial_cash']:>10,.2f}")
-    print(f"  Final value     : ${res['final_value']:>10,.2f}")
-    print(f"  PnL             : ${res['pnl']:>+10,.2f}  ({res['pnl_pct']:+.2f}%)")
+    print(f"  Initial cash    : {res['initial_cash']:>12,.0f} ₫")
+    print(f"  Final value     : {res['final_value']:>12,.0f} ₫")
+    print(f"  PnL             : {res['pnl']:>+12,.0f} ₫  ({res['pnl_pct']:+.2f}%)")
     print(f"  Sharpe ratio    : {res['sharpe_ratio']:>10.3f}")
     print(f"  Max drawdown    : {res['max_drawdown_pct']:>10.2f}%")
     print(f"  Total trades    : {res['total_trades']:>10}")
     print(f"  Win rate        : {res['win_rate_pct']:>10.1f}%")
-    print(f"\n  {'Date':<12} {'Action':<12} {'Shares':>6}  {'Price':>10}  {'Trade PnL':>10}")
-    print(f"  {'-'*55}")
+    print(f"\n  {'Date':<12} {'Action':<12} {'Shares':>6}  {'Price':>12}  {'Trade PnL':>10}")
+    print(f"  {'-'*58}")
     exit_kinds = ("TP", "EXIT", "STOP", "TIME", "TIME-L", "CLOSE")
     buy_trades  = [t for t in trades if t[1] == "BUY"]
     exit_trades = [t for t in trades if t[1] in exit_kinds]
     for t in trades:
         date_val, kind, shares, price = t
         if kind == "BUY":
-            print(f"  {str(date_val):<12} {kind:<12} {shares:>6}  ${price:>9.2f}  {'':>10}")
+            print(f"  {str(date_val):<12} {kind:<12} {shares:>6}  {price:>11,.0f} ₫  {'':>10}")
         else:
             # find matching buy
             buy_idx = len([x for x in trades[:trades.index(t)] if x[1] == "BUY"]) - 1
             buy = buy_trades[buy_idx] if 0 <= buy_idx < len(buy_trades) else None
             pnl_str = f"{(price / buy[3] - 1)*100:+.2f}%" if buy else ""
-            print(f"  {str(date_val):<12} {kind:<12} {shares:>6}  ${price:>9.2f}  {pnl_str:>10}")
+            print(f"  {str(date_val):<12} {kind:<12} {shares:>6}  {price:>11,.0f} ₫  {pnl_str:>10}")
     print()
 
     _save_chart(res, args.symbol, args.start, args.end, args.chart)
